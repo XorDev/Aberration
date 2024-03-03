@@ -1,9 +1,9 @@
 {
   "FolderOrderSettings": [
-    {"name":"Sprites","order":1,"path":"folders/Sprites.yy",},
-    {"name":"Shaders","order":6,"path":"folders/Shaders.yy",},
     {"name":"Objects","order":9,"path":"folders/Objects.yy",},
     {"name":"Rooms","order":10,"path":"folders/Rooms.yy",},
+    {"name":"Shaders","order":6,"path":"folders/Shaders.yy",},
+    {"name":"Sprites","order":1,"path":"folders/Sprites.yy",},
   ],
   "ResourceOrderSettings": [],
 }

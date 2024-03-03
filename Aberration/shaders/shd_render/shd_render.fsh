@@ -1,7 +1,11 @@
 varying vec2 v_coord;
 
-uniform vec3 u_dir;
+uniform vec4 u_dir;//dx,dy,dz,fov ratio
 uniform vec3 u_pos;
+uniform vec3 u_vel;
+uniform vec4 u_map;
+uniform vec2 u_ran;
+uniform sampler2D u_noise;
 
 #define STEPS 100
 #define EPS 5e-4
@@ -21,18 +25,19 @@ float dist_box(vec3 p,vec3 b)
 float dist(vec3 p)
 {
 	vec3 v = p;
-	v.xy = abs(mod(p.xy,676.)-338.)-169.;
-	float d = min(p.z,dist_box(v,vec3(80,50,40)));
+	vec2 s = 50.+200.*u_map.zw;
+	v.xy = abs(mod(p.xy,s*4.)-s*2.)-s;
+	float d = min(p.z,dist_box(v,vec3(s*.3,40)));
 	
-	mat2 m = rotate2D(2.5);
+	mat2 m = rotate2D(u_map[1]);
 	
-	for(float i=1e2; i>0.1; i*=.4)
+	for(float i=1e2; i>0.1; i*=u_map[0])
 	{
 		v.xy *= m;
 		//v.zx *= m;
-		v.z += .2*i;
+		v.z += u_map[2]*i;
         //Subtract cube SDFs
-		v = i*vec3(.9,.8,.4) - abs(mod(v,i*2.)-i);
+		v = i*vec3(.9,u_map[3],.4) - abs(mod(v,i*2.)-i);
 		float _d = max(0., min(v.x,min(v.y,v.z))) - length(min(v,0.));
 		d = max(_d,d);
 	}
@@ -70,9 +75,9 @@ float shadow(vec3 p, vec3 d, vec4 n, float start, float end)
 	*/
 	float l = 1.0;
 	float j = 0.0;
-	for(float i = start*(.5+n.a); i<end; i*=1.4)
+	for(float i = start*(.5+n.a); i<end; i*=1.5)
 	{
-		l *= clamp(dist(p+d*i)*9./i,0.002,1.);
+		l *= clamp(dist(p+d*i)*9./i,0.0005,1.);
 		j++;
 	}
 	return pow(l,2./j);
@@ -86,26 +91,27 @@ vec3 normal(vec3 p, float E)
 }
 void main()
 {
-	vec4 tex = texture2D(gm_BaseTexture, gl_FragCoord.xy/256.);
+	vec4 noi = texture2D(u_noise, gl_FragCoord.xy/256.+u_ran);
+	vec4 back = texture2D(gm_BaseTexture, v_coord);
 	
-	vec3 ray = vec3((v_coord - 0.5) * vec2(16./9.,1)*2., 1.0);
-	vec3 Z = u_dir;
+	vec3 ray = vec3((v_coord - 0.5) * vec2(16./9.,1)*u_dir.w, 1.0);
+	vec3 Z = u_dir.xyz;
 	vec3 X = normalize(cross(Z, vec3(0,0,-1)));
 	vec3 Y = normalize(cross(X, Z));
 	
 	float E = EPS/length(ray);
 	ray = normalize(mat3(X,Y,Z) * ray);
-	vec4 m = raymarch(u_pos, ray, STEPS, E, FAR);
+	vec3 p = u_pos +u_vel*noi.a*5.0;
+	vec4 m = raymarch(p, ray, STEPS, E, FAR);
 	
+	float fog = smoothstep(20.0,-60.,m.z);
 	//vec3 n = normal(m.xyz, E);
-	vec3 dif = tex.rgb;//vec3(1,2,7);//vec3(0,0,-5) - m.xyz;
+	vec3 dif = noi.rgb+fog*4.;//mix(noi.rgb,vec3(1,2,7),noi.a*noi.a*noi.a);//vec3(0,0,-5) - m.xyz;
 	float len = length(dif);
-	vec3 r = dif/len;//sqrt(vec3(.1,.2,.7));//normalize(tex.rgb-.5);
-	//r *= sign(dot(r,n));
+	vec3 r = dif/len;//sqrt(vec3(.1,.2,.7));//normalize(noi.rgb-.5);
 	
-	float fog = max(m.w/FAR,0.);
 	
-	float l = shadow(mix(m.xyz,u_pos,0.), r, tex, .005*m.w, (m.w));
+	float l = shadow(mix(m.xyz,p,noi.r*fog), r, noi, 0.01*m.w, 4.*m.w);
 	
-    gl_FragColor = vec4(l,l,l,1);//pow(vec3(fog),vec3(1,.5,.2))
+    gl_FragColor = vec4(l,pow(back.rg,vec2(.8)),1);//pow(vec3(fog),vec3(1,.5,.2))
 }
