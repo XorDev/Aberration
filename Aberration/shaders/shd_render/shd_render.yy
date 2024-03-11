@@ -1,10 +1,12 @@
 {
-  "resourceType": "GMShader",
-  "resourceVersion": "1.0",
-  "name": "shd_render",
-  "parent": {
-    "name": "Shaders",
-    "path": "folders/Shaders.yy",
+  "$GMShader":"",
+  "%Name":"shd_render",
+  "name":"shd_render",
+  "parent":{
+    "name":"Shaders",
+    "path":"folders/Shaders.yy",
   },
-  "type": 1,
+  "resourceType":"GMShader",
+  "resourceVersion":"2.0",
+  "type":1,
 }

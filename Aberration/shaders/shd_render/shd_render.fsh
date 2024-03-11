@@ -42,11 +42,12 @@ float dist(vec3 p)
 		d = max(_d,d);
 	}
 	return d;
+	//return min(length(cos(p*.4)-.9)/.4-1.,p.z+1.);
 }
 
-vec4 raymarch(vec3 p, vec3 d, const int num, float eps, float far)
+vec4 raymarch(vec3 p, vec3 d, vec4 n, const int num, float eps, float far)
 {
-	vec4 m = vec4(p+d*.01, .01);
+	vec4 m = vec4(p+d*n.a*3., n.a*3.);
 	for(int i = 0; i<num; i++)
 	{
 		float s = dist(m.xyz);
@@ -59,28 +60,30 @@ vec4 raymarch(vec3 p, vec3 d, const int num, float eps, float far)
 }
 float shadow(vec3 p, vec3 d, vec4 n, float start, float end)
 {
-	/*float l = 1.0;
+	float l = 1.0;
 	vec4 m = vec4(p+d*start, start);
 	for(int i = 0; i<STEPS; i++)
 	{
 		float s = dist(m.xyz);
 		m += vec4(d*s,s);
-		l = min(l,s/m.w*9.);
+		if (m.w>=end || (m.z>40. && d.z>0.)) break;
 		
+		l = min(l,s/m.w*9.);
 		if (l<=0.0) return 0.0;
-		if (m.w>=end || (m.z>40. && d.z>0.)) return l;
 	}
-	return l;	
+	return l;
 	
-	*/
+	
+	/*
 	float l = 1.0;
 	float j = 0.0;
 	for(float i = start*(.5+n.a); i<end; i*=1.5)
 	{
-		l *= clamp(dist(p+d*i)*9./i,0.0005,1.);
+		l *= clamp(dist(p+d*i)*9./i,0.000,1.);
 		j++;
 	}
 	return pow(l,2./j);
+	*/
 }
 
 vec3 normal(vec3 p, float E)
@@ -102,16 +105,18 @@ void main()
 	float E = EPS/length(ray);
 	ray = normalize(mat3(X,Y,Z) * ray);
 	vec3 p = u_pos +u_vel*noi.a*5.0;
-	vec4 m = raymarch(p, ray, STEPS, E, FAR);
+	vec4 m = raymarch(p, ray, noi, STEPS, E, FAR);
 	
 	float fog = smoothstep(20.0,-60.,m.z);
 	//vec3 n = normal(m.xyz, E);
-	vec3 dif = noi.rgb+fog*4.;//mix(noi.rgb,vec3(1,2,7),noi.a*noi.a*noi.a);//vec3(0,0,-5) - m.xyz;
+	
+	vec3 scatter = mix(m.xyz,p,noi.r);
+	vec3 dif = (noi.rgb-.5)*0. - (scatter-u_pos-u_dir.xyz*u_dir.w*3.0+u_vel*8.0);//mix(noi.rgb,vec3(1,2,7),noi.a*noi.a*noi.a);//vec3(0,0,-5) - m.xyz;
 	float len = length(dif);
 	vec3 r = dif/len;//sqrt(vec3(.1,.2,.7));//normalize(noi.rgb-.5);
 	
+	float l = shadow(scatter, r, noi, 0.01*m.w, len);//min(4.*m.w, 
+	//l *= shadow(mix(m.xyz,p,(noi.r)*fog*.1), r, noi, 0.01*m.w,min(4.*m.w,len));
 	
-	float l = shadow(mix(m.xyz,p,noi.r*fog), r, noi, 0.01*m.w, 4.*m.w);
-	
-    gl_FragColor = vec4(l,pow(back.rg,vec2(.8)),1);//pow(vec3(fog),vec3(1,.5,.2))
+    gl_FragColor = vec4(l/(1.+len/5e0),pow(back.rg,vec2(.8)),1);//pow(vec3(fog),vec3(1,.5,.2))
 }
